@@ -2,7 +2,7 @@
 # _*_ coding:utf-8 _*_
 
 '''
- ____	    _	  _     _ _   __  __	       _
+ ____	    _	  _	_ _   __  __	       _
 |  _ \ __ _| |__ | |__ (_) |_|  \/  | __ _ ___| | __
 | |_) / _` | '_ \| '_ \| | __| |\/| |/ _` / __| |/ /
 |  _ < (_| | |_) | |_) | | |_| |  | | (_| \__ \   <
@@ -27,7 +27,7 @@ def saveinfo(result):
 #通过查看/jolokia/list 中存在的 Mbeans，是否存在logback 库提供的reloadByURL方法来进行判断。
 def Jolokiacheck(url):
 	url_tar = url + '/jolokia/list'
-	r = requests.get(url_tar, headers=HD, verify=False, allow_redirects=False)
+	r = requests.get(url_tar, headers=HD, timeout=10, verify=False, allow_redirects=False)
 	if r.status_code == 200:
 		print("springboot-jolokia未授权：{}".format(url_tar))
 		saveinfo("springboot-jolokia未授权：{}".format(url_tar))
@@ -42,7 +42,7 @@ def Jolokiacheck(url):
 #Spring Boot env端点存在环境属性覆盖和XStream反序列化漏洞
 def Envcheck_1(url):
 	url_tar = url + '/env'
-	r = requests.get(url_tar, headers=HD, verify=False, allow_redirects=False)
+	r = requests.get(url_tar, headers=HD, timeout=10, verify=False, allow_redirects=False)
 	if r.status_code == 200:
 		print("springboot-env未授权访问：{}".format(url_tar))
 		saveinfo("springboot-env未授权访问：{}".format(url_tar))
@@ -61,7 +61,7 @@ def sb1_Actuator(url):
 	Jolokiacheck(url)
 	for i in pathlist:
 		url_tar = url+i
-		r = requests.get(url_tar, headers=HD, verify=False, allow_redirects=False)
+		r = requests.get(url_tar, headers=HD, timeout=10, verify=False, allow_redirects=False)
 		if r.status_code==200:
 			print("springboot-{} 端点的未授权访问：{}".format(i.replace('/',''),url_tar))
 			saveinfo("springboot-{} 端点的未授权访问：{}".format(i.replace('/',''),url_tar))
@@ -73,7 +73,7 @@ def sb1_Actuator(url):
 #后来证实2.*也是存在的，data需要以json格式发送，这个我后边会给出具体exp
 def Envcheck_2(url):
 	url_tar = url + '/actuator/env'
-	r = requests.get(url_tar, headers=HD, verify=False, allow_redirects=False)
+	r = requests.get(url_tar, headers=HD, timeout=10, verify=False, allow_redirects=False)
 	if r.status_code == 200:
 		print("springboot-env 未授权访问：{}".format(url_tar))
 		saveinfo("springboot-env 未授权访问：{}".format(url_tar))
@@ -84,7 +84,7 @@ def Envcheck_2(url):
 			print("springboot-env 端点eureka.client.serviceUrl.defaultZone属性开启,可进行XStream反序列化RCE测试：{}".format(url_tar))
 			saveinfo("springboot-env 端点eureka.client.serviceUrl.defaultZone属性开启,可进行XStream反序列化RCE测试：{}".format(url_tar))
 		headers["Cache-Control"]="max-age=0"
-		rr = requests.post(url+'/actuator/restart', headers=headers, verify=False, allow_redirects=False)
+		rr = requests.post(url+'/actuator/restart', headers=headers, verify=False, timeout=10, allow_redirects=False)
 		if rr.status_code == 200:
 			print("springboot-env 端点支持restart端点访问,可进行H2 RCE测试：{}".format(url+'/actuator/restart'))
 			saveinfo("springboot-env 端点支持restart端点访问,可进行H2 RCE测试：{}".format(url+'/actuator/restart'))
@@ -97,7 +97,7 @@ def sb2_Actuator(url):
 	Jolokiacheck(url+'/actuator')
 	for i in pathlist:
 		url_tar = url+'/actuator'+i
-		r = requests.get(url_tar, headers=HD, verify=False, allow_redirects=False)
+		r = requests.get(url_tar, headers=HD,timeout=10, verify=False, allow_redirects=False)
 		if r.status_code==200:
 			print("springboot-{}未授权访问：{}".format(i.replace('/',''),url_tar))
 			saveinfo("springboot-{}未授权访问：{}".format(i.replace('/', ''), url_tar))
@@ -106,10 +106,12 @@ def sb2_Actuator(url):
 
 def sbcheck(url):
 	try:
-		r = requests.get(url+ '/404', headers=HD,timeout=10,verify=False, allow_redirects=False)
+		r = requests.get(url+ '/404', headers=HD, timeout=10,verify=False, allow_redirects=False)
 		if r.status_code==404 or r.status_code==403:
 			if 'Whitelabel Error Page' in r.text  or 'There was an unexpected error'in r.text:
 				return 1
+		else:
+			return 0
 	except requests.exceptions.ConnectTimeout:
 		return 0
 	except requests.exceptions.ConnectionError:
@@ -125,11 +127,13 @@ def sb_Actuator(target):
 		url = 'https://'+str(target)
 	else:
 		url = 'http://'+str(target)
+	flag = 0
 	flag = sbcheck(url)
 	if flag == 0:
 		return
-	try:
-		if sb1_Actuator(url)==0:
-			sb2_Actuator(url)
-	except:
-		return
+	else:
+		try:
+			if sb1_Actuator(url)==0:
+				sb2_Actuator(url)
+		except:
+			return
