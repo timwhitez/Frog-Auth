@@ -1,1 +1,5 @@
-127.0.0.1
+172.16.1.1
+192.168.1.1/24
+10.0.0.0/24
+testphp.vulnweb.com
+www.vulnweb.com
