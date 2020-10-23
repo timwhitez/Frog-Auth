@@ -2,7 +2,7 @@
 # _*_ coding:utf-8 _*_
 
 '''
- ____	    _	  _	    _ _   __  __		   _
+ ____	    _	  _     _ _   __  __	       _
 |  _ \ __ _| |__ | |__ (_) |_|  \/  | __ _ ___| | __
 | |_) / _` | '_ \| '_ \| | __| |\/| |/ _` / __| |/ /
 |  _ < (_| | |_) | |_) | | |_| |  | | (_| \__ \   <
@@ -29,14 +29,14 @@ def Jolokiacheck(url):
 	url_tar = url + '/jolokia/list'
 	r = requests.get(url_tar, headers=HD, verify=False, allow_redirects=False)
 	if r.status_code == 200:
-		print("jolokia未授权：{}".format(url_tar))
-		saveinfo("jolokia未授权：{}".format(url_tar))
+		print("springboot-jolokia未授权：{}".format(url_tar))
+		saveinfo("springboot-jolokia未授权：{}".format(url_tar))
 		if 'reloadByURL' in r.text:
-			print("jolokia存在reloadByURL方法,可进行XXE/RCE测试：{}".format(url_tar))
-			saveinfo("jolokia 端点存在reloadByURL方法,可进行XXE/RCE测试：{}".format(url_tar))
+			print("springboot-jolokia存在reloadByURL方法,可进行XXE/RCE测试：{}".format(url_tar))
+			saveinfo("springboot-jolokia 端点存在reloadByURL方法,可进行XXE/RCE测试：{}".format(url_tar))
 		if 'createJNDIRealm' in r.text:
-			print("jolokia存在createJNDIRealm方法,可进行JNDI注入RCE测试：{}".format(url_tar))
-			saveinfo("jolokia 端点存在createJNDIRealm方法,可进行JNDI注入RCE测试：{}".format(url_tar))
+			print("springboot-jolokia存在createJNDIRealm方法,可进行JNDI注入RCE测试：{}".format(url_tar))
+			saveinfo("springboot-jolokia 端点存在createJNDIRealm方法,可进行JNDI注入RCE测试：{}".format(url_tar))
 
 
 #Spring Boot env端点存在环境属性覆盖和XStream反序列化漏洞
@@ -44,14 +44,14 @@ def Envcheck_1(url):
 	url_tar = url + '/env'
 	r = requests.get(url_tar, headers=HD, verify=False, allow_redirects=False)
 	if r.status_code == 200:
-		print("env未授权访问：{}".format(url_tar))
-		saveinfo("env未授权访问：{}".format(url_tar))
+		print("springboot-env未授权访问：{}".format(url_tar))
+		saveinfo("springboot-env未授权访问：{}".format(url_tar))
 		if 'spring.cloud.bootstrap.location' in r.text:
-			print("env 端点spring.cloud.bootstrap.location属性开启,可进行环境属性覆盖RCE测试：{}".format(url_tar))
-			saveinfo("env 端点spring.cloud.bootstrap.location属性开启,可进行环境属性覆盖RCE测试：{}".format(url_tar))
+			print("springboot-env 端点spring.cloud.bootstrap.location属性开启,可进行环境属性覆盖RCE测试：{}".format(url_tar))
+			saveinfo("springboot-env 端点spring.cloud.bootstrap.location属性开启,可进行环境属性覆盖RCE测试：{}".format(url_tar))
 		if 'eureka.client.serviceUrl.defaultZone' in r.text:
-			print("env 端点eureka.client.serviceUrl.defaultZone属性开启,可进行XStream反序列化RCE测试：{}".format(url_tar))
-			saveinfo("env 端点eureka.client.serviceUrl.defaultZone属性开启,可进行XStream反序列化RCE测试：{}".format(url_tar))
+			print("springboot-env 端点eureka.client.serviceUrl.defaultZone属性开启,可进行XStream反序列化RCE测试：{}".format(url_tar))
+			saveinfo("springboot-env 端点eureka.client.serviceUrl.defaultZone属性开启,可进行XStream反序列化RCE测试：{}".format(url_tar))
 
 
 #Spring Boot 1.x版本端点在根URL下注册。
@@ -63,8 +63,8 @@ def sb1_Actuator(url):
 		url_tar = url+i
 		r = requests.get(url_tar, headers=HD, verify=False, allow_redirects=False)
 		if r.status_code==200:
-			print("{} 端点的未授权访问：{}".format(i.replace('/',''),url_tar))
-			saveinfo("{} 端点的未授权访问：{}".format(i.replace('/',''),url_tar))
+			print("springboot-{} 端点的未授权访问：{}".format(i.replace('/',''),url_tar))
+			saveinfo("springboot-{} 端点的未授权访问：{}".format(i.replace('/',''),url_tar))
 			key=1
 	return key
 
@@ -75,19 +75,19 @@ def Envcheck_2(url):
 	url_tar = url + '/actuator/env'
 	r = requests.get(url_tar, headers=HD, verify=False, allow_redirects=False)
 	if r.status_code == 200:
-		print("env 未授权访问：{}".format(url_tar))
-		saveinfo("env 未授权访问：{}".format(url_tar))
+		print("springboot-env 未授权访问：{}".format(url_tar))
+		saveinfo("springboot-env 未授权访问：{}".format(url_tar))
 		if 'spring.cloud.bootstrap.location' in r.text:
-			print("env 端点spring.cloud.bootstrap.location属性开启,可进行环境属性覆盖RCE测试：{}".format(url_tar))
-			saveinfo("env 端点spring.cloud.bootstrap.location属性开启,可进行环境属性覆盖RCE测试：{}".format(url_tar))
+			print("springboot-env 端点spring.cloud.bootstrap.location属性开启,可进行环境属性覆盖RCE测试：{}".format(url_tar))
+			saveinfo("springboot-env 端点spring.cloud.bootstrap.location属性开启,可进行环境属性覆盖RCE测试：{}".format(url_tar))
 		if 'eureka.client.serviceUrl.defaultZone' in r.text:
-			print("env 端点eureka.client.serviceUrl.defaultZone属性开启,可进行XStream反序列化RCE测试：{}".format(url_tar))
-			saveinfo("env 端点eureka.client.serviceUrl.defaultZone属性开启,可进行XStream反序列化RCE测试：{}".format(url_tar))
+			print("springboot-env 端点eureka.client.serviceUrl.defaultZone属性开启,可进行XStream反序列化RCE测试：{}".format(url_tar))
+			saveinfo("springboot-env 端点eureka.client.serviceUrl.defaultZone属性开启,可进行XStream反序列化RCE测试：{}".format(url_tar))
 		headers["Cache-Control"]="max-age=0"
 		rr = requests.post(url+'/actuator/restart', headers=headers, verify=False, allow_redirects=False)
 		if rr.status_code == 200:
-			print("env 端点支持restart端点访问,可进行H2 RCE测试：{}".format(url+'/actuator/restart'))
-			saveinfo("env 端点支持restart端点访问,可进行H2 RCE测试：{}".format(url+'/actuator/restart'))
+			print("springboot-env 端点支持restart端点访问,可进行H2 RCE测试：{}".format(url+'/actuator/restart'))
+			saveinfo("springboot-env 端点支持restart端点访问,可进行H2 RCE测试：{}".format(url+'/actuator/restart'))
 
 
 
@@ -99,8 +99,8 @@ def sb2_Actuator(url):
 		url_tar = url+'/actuator'+i
 		r = requests.get(url_tar, headers=HD, verify=False, allow_redirects=False)
 		if r.status_code==200:
-			print("{}未授权访问：{}".format(i.replace('/',''),url_tar))
-			saveinfo("{}未授权访问：{}".format(i.replace('/', ''), url_tar))
+			print("springboot-{}未授权访问：{}".format(i.replace('/',''),url_tar))
+			saveinfo("springboot-{}未授权访问：{}".format(i.replace('/', ''), url_tar))
 
 
 
