@@ -50,7 +50,7 @@ python3 frogAuth.py linux/win -f ip.txt
 
 ```
 # 运行截图
-![image]()
+![image](https://raw.githubusercontent.com/timwhitez/Frog-Auth/main/img.png)
 
 #todo
 若有好的建议，新的未授权访问poc，程序的bug，欢迎提交issues
