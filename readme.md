@@ -54,3 +54,6 @@ python3 frogAuth.py linux/win -f ip.txt
 
 ## todo
 若有好的建议，新的未授权访问poc，程序的bug，欢迎提交issues
+
+## Star Trend
+[![Stargazers over time](https://starchart.cc/timwhitez/Frog-Auth.svg)](https://starchart.cc/timwhitez/Frog-Auth)
