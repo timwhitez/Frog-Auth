@@ -131,7 +131,7 @@ def sb_Actuator(target):
 		url = 'http://'+str(target)
 	flag = 0
 	flag = sbcheck(url)
-	if flag == 0:
+	if flag != 1:
 		return
 	else:
 		try:
