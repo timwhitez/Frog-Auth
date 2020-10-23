@@ -31,7 +31,7 @@ jenkins, druid, spark, spark api, tensorboard, jboss
 
 springboot
 ```
-#### 感谢RabbitMask提供的springboot poc, xray社区的部分未授权访问poc, kingkk的架构建议, cwkiller的部分未授权poc
+#### 感谢RabbitMask提供的springboot poc, xray社区的部分未授权访问poc, kingkk的架构建议, cwkiller的部分未授权访问poc
 
 ## 常用命令
 ```
