@@ -110,6 +110,8 @@ def sbcheck(url):
 		if r.status_code==404 or r.status_code==403:
 			if 'Whitelabel Error Page' in r.text  or 'There was an unexpected error'in r.text:
 				return 1
+			else:
+				return 0
 		else:
 			return 0
 	except requests.exceptions.ConnectTimeout:
