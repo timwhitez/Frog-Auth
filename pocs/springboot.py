@@ -33,10 +33,10 @@ def Jolokiacheck(url):
 		saveinfo("jolokia未授权：{}".format(url_tar))
 		if 'reloadByURL' in r.text:
 			print("jolokia存在reloadByURL方法,可进行XXE/RCE测试：{}".format(url_tar))
-			saveinfo("目标站点开启了 jolokia 端点且存在reloadByURL方法,可进行XXE/RCE测试：{}".format(url_tar))
+			saveinfo("jolokia 端点存在reloadByURL方法,可进行XXE/RCE测试：{}".format(url_tar))
 		if 'createJNDIRealm' in r.text:
 			print("jolokia存在createJNDIRealm方法,可进行JNDI注入RCE测试：{}".format(url_tar))
-			saveinfo("目标站点开启了 jolokia 端点且存在createJNDIRealm方法,可进行JNDI注入RCE测试：{}".format(url_tar))
+			saveinfo("jolokia 端点存在createJNDIRealm方法,可进行JNDI注入RCE测试：{}".format(url_tar))
 
 
 #Spring Boot env端点存在环境属性覆盖和XStream反序列化漏洞
