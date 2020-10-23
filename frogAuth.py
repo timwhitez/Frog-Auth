@@ -37,17 +37,18 @@ def port_scan(file_name):
 	print("Ports Scanning.")
 	try:
 		output = subprocess.check_output(cmd)
-		print("Finish Ports Scan.")
-		portL = str(output).split("\\n")
-		try:
-			portL[0] = portL[0].split("'")[1]
-		except:
-			pass
+	except Exception as e:
+		print(e)
+		sys.exit(1)
+	print("Finish Ports Scan.")
+	portL = str(output).split("\\n")
+	try:
+		portL[0] = portL[0].split("'")[1]
 		del portL[-1]
-		for pl in portL:
-			pFile(pl)
 	except:
-		return portL
+		pass
+	for pl in portL:
+		pFile(pl)
 
 	return portL
 
