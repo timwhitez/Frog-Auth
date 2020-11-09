@@ -55,7 +55,7 @@ python3 frogAuth.py win -f ip.txt
 ip.txt按行划分，支持ip/domain/CIDR格式
 
 ## Usage
-若在linux下使用，请给 naabu_linux 可执行权限
+若在linux下使用，请给 naabu_linux 和 httpx_linux 可执行权限
 ```
 python3 -m pip install requirements.txt
 
