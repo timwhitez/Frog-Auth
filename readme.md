@@ -29,7 +29,7 @@ docker registry api, influxdb, hadoop yarn api,
 
 jenkins, druid, spark, spark api, tensorboard, jboss
 
-springboot
+springboot, zabbix, flink, solr
 ```
 ## update log
 ```
