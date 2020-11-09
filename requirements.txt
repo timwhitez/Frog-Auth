@@ -1,3 +1,4 @@
 pymongo
 requests
 pymysql
+pyzabbix

@@ -9,6 +9,7 @@
 |_| \_\__,_|_.__/|_.__/|_|\__|_|  |_|\__,_|___/_|\_\
 '''
 import requests
+from pocs import const
 
 pathlist=['/autoconfig','/beans','/configprops','/dump','/health','/info','/mappings','/metrics','/trace',]
 HD = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36",
@@ -125,7 +126,7 @@ def sbcheck(url):
 def sb_Actuator(target):
 	ip = target.split(":")[0]
 	port = target.split(":")[1]
-	if "443" in str(port):
+	if "443" in str(port) or str(port) in const.https_ports:
 		url = 'https://'+str(target)
 	else:
 		url = 'http://'+str(target)
