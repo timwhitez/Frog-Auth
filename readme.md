@@ -40,6 +40,8 @@ springboot, zabbix, flink, solr
 加入httpx针对domain的检测以避免漏过cdn，修复部分判断逻辑错误，
 
 新增zabbix默认密码、solr未授权、flink未授权检测，修改https对应端口
+
+考虑到青蛙头banner在部分字体中会乱码，故删去
 ```
 
 #### 感谢RabbitMask提供的springboot poc, xray社区的部分未授权访问poc, kingkk的建议, cwkiller的部分未授权访问poc
