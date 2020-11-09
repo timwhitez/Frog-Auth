@@ -8,6 +8,8 @@
 
 Frog-Auth未授权访问检测，采用python3实现，使用subprocess加载[naabu](https://github.com/projectdiscovery/naabu)端口扫描工具，
 
+使用httpx进行二次web服务检测
+
 配合全面的未授权访问pocs以及独特检测框架，支持ip/domain/CIDR输入。
 
 ## about
