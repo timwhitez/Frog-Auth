@@ -74,7 +74,7 @@ def hFile(strw):
 def port_scan(file_name):
 	portL = []
 	cmd = ["./ports/"+naabu, "-iL", file_name, "-p", const.all_ports, "-nC", "-privileged", "-silent", "-ping", "false",  "-rate", "1000", "-no-probe"]
-	print(cmd)
+	#print(cmd)
 	print("Ports Scanning.")
 	try:
 		output = subprocess.check_output(cmd)
