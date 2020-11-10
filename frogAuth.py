@@ -226,3 +226,4 @@ if __name__ == '__main__':
 		all_task = [pool.submit(springb, target) for target in http_res]
 		wait(all_task, return_when=ALL_COMPLETED)
 	print('Finished Springboot Scan.')
+	delf("tmp.txt")
