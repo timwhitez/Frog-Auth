@@ -219,23 +219,30 @@ def zabbix(target):
 	except:
 		return
 	try:
-		zapi = ZabbixAPI(url0)
-		zapi.session.verify = False
-		zapi.timeout = 10
-		zapi.login("Admin", "zabbix")
-		print(url0 + "zabbix默认密码Admin/zabbix")
-		rFile(url0 + "zabbix默认密码Admin/zabbix")
+		r = requests.get(url0, headers = HD, timeout=10,verify=False, allow_redirects=True)
+		r0 = requests.get(url, headers = HD, timeout=10,verify=False, allow_redirects=True)
 	except:
+		return
+	if "zabbix" in r.content.decode().lower() or "zabbix" in r0.content.decode().lower():
 		try:
-			zapi = ZabbixAPI(url)
+			zapi = ZabbixAPI(url0)
 			zapi.session.verify = False
 			zapi.timeout = 10
 			zapi.login("Admin", "zabbix")
-			print(url + "zabbix默认密码Admin/zabbix")
-			rFile(url + "zabbix默认密码Admin/zabbix")
+			print(url0 + "zabbix默认密码Admin/zabbix")
+			rFile(url0 + "zabbix默认密码Admin/zabbix")
 		except:
-			return
-
+			try:
+				zapi = ZabbixAPI(url)
+				zapi.session.verify = False
+				zapi.timeout = 10
+				zapi.login("Admin", "zabbix")
+				print(url + "zabbix默认密码Admin/zabbix")
+				rFile(url + "zabbix默认密码Admin/zabbix")
+			except:
+				return
+	else:
+		return
 
 
 def influxdb(target):
