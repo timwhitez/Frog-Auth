@@ -24,7 +24,7 @@ def rFile(strw):
 def redis(target):
 	try:
 		ip = target.split(":")[0]
-		port = target.split(":")[1]
+		port = int(target.split(":")[1])
 		socket.setdefaulttimeout(10)
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		s.connect((ip, port))
@@ -42,7 +42,7 @@ def redis(target):
 def mongodb(target):
 	try:
 		ip = target.split(":")[0]
-		port = target.split(":")[1]
+		port = int(target.split(":")[1])
 		conn = pymongo.MongoClient(ip, port, socketTimeoutMS=4000)
 		dbname = conn.list_database_names()
 		print(target + " mongodb未授权")
@@ -56,7 +56,7 @@ def mongodb(target):
 def memcached(target):
 	try:
 		ip = target.split(":")[0]
-		port = target.split(":")[1]
+		port = int(target.split(":")[1])
 		socket.setdefaulttimeout(10)
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		s.connect((ip, port))
@@ -72,7 +72,7 @@ def memcached(target):
 def elasticsearch(target):
 	try:
 		ip = target.split(":")[0]
-		port = target.split(":")[1]
+		port = int(target.split(":")[1])
 		if "443" in str(port) or str(port) in const.https_ports:
 			url0 = 'https://'+str(target) +'/'
 			url = 'https://'+str(target) +'/_cat'
@@ -91,7 +91,7 @@ def elasticsearch(target):
 def zookeeper(target):
 	try:
 		ip = target.split(":")[0]
-		port = target.split(":")[1]
+		port = int(target.split(":")[1])
 		socket.setdefaulttimeout(10)
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		s.connect((ip, port))
@@ -108,7 +108,7 @@ def zookeeper(target):
 def ftp(target):
 	try:
 		ip = target.split(":")[0]
-		port = target.split(":")[1]
+		port = int(target.split(":")[1])
 		ftp = ftplib.FTP.connect(ip,port,timeout=10)
 		ftp.login('anonymous', 'Aa@12345678')
 		print(target + " FTP未授权")
@@ -324,7 +324,7 @@ def rsync(target):
 def mysql(target):
 	try:
 		ip = target.split(":")[0]
-		port0 = target.split(":")[1]
+		port0 = int(target.split(":")[1])
 		conn = pymysql.connect(host=ip, port=port0, user='root', password='', charset='utf8', autocommit=True)
 		print(target + " 存在mysql空口令漏洞")
 		rFile(target + " 存在mysql空口令漏洞")
