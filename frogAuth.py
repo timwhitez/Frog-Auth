@@ -68,6 +68,13 @@ def hFile(strw):
 	finally:
 		f.close()
 
+# 从文件读取扫描结果
+def getresult(filename):
+    file = open(filename,'r',encoding='utf-8')
+    s = file.readlines()
+    s=[x.strip() for x in s if x.strip()!='']
+    return s
+
 
 
 #端口扫描
@@ -174,12 +181,18 @@ if __name__ == '__main__':
 	else:
 		parser = argparse.ArgumentParser() 
 		parser.add_argument('os', help='win/linux')
+		parser.add_argument('-m',help='scan/file',default='scan')
 		parser.add_argument('-f', help='filename', default='ip.txt')
 		args = parser.parse_args()
 		getsys(args.os)
 	file = args.f
+	module = args.m
 	delf("tmp.txt")
-	port_res = port_scan(file)
+	# 获取扫描结果
+	if module == 'file':
+		port_res = getresult(file)	
+	else:
+		port_res = port_scan(file)
 	#对扫描结果进行打乱
 	port_res = list(set(port_res))
 	shuffle(port_res)
