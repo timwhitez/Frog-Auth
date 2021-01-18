@@ -201,7 +201,7 @@ if __name__ == '__main__':
 
 	for f in fileL:
 		try:
-			if f.split(".")[-1].isalpha():
+			if f.split(".")[-1].isalpha() and args.m == 'scan':
 				prefil(f)
 		except:
 			continue
