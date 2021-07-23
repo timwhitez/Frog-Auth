@@ -80,7 +80,7 @@ def getresult(filename):
 #端口扫描
 def port_scan(file_name):
 	portL = []
-	cmd = ["./ports/"+naabu, "-iL", file_name, "-p", const.all_ports, "-nC", "-privileged", "-silent", "-ping", "false",  "-rate", "1000", "-no-probe"]
+	cmd = ["./ports/"+naabu, "-iL", file_name, "-p", const.all_ports, "-no-color", "-silent", "-ping", "false",  "-rate", "1000", "-stats"]
 	#print(cmd)
 	print("Ports Scanning.")
 	try:
@@ -106,6 +106,7 @@ def httpx(target):
 	print("Httpx Scanning.")
 	try:
 		output = subprocess.check_output(cmd)
+		print(output)
 	except Exception as e:
 		print(e)
 		sys.exit(1)
