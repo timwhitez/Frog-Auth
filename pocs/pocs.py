@@ -1,470 +1,377 @@
 #!/usr/bin/python3
-# coding: utf-8
-import socket
-import pymongo
-import requests
+# -*- coding: utf-8 -*-
 import ftplib
-import pymysql
-import logging
-logging.captureWarnings(True)
-from pocs import const
-from pyzabbix import ZabbixAPI
+import socket
 
-HD = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36"}
+from pocs import const, runtime
 
-#添加写入
+try:
+    import pymongo
+except ImportError:
+    pymongo = None
+
+try:
+    import pymysql
+except ImportError:
+    pymysql = None
+
+try:
+    from pyzabbix import ZabbixAPI
+except ImportError:
+    ZabbixAPI = None
+
+
+HD = runtime.DEFAULT_HEADERS
+
+
 def rFile(strw):
-	try:
-		f = open('results.txt','a')
-		f.write(strw)
-		f.write('\n')
-	finally:
-		f.close()
+    runtime.save_result(strw)
+
+
+def _url(target, path="/"):
+    return runtime.url_for(target, path, const.https_ports_set)
+
+
+def _text(resp):
+    return runtime.response_text(resp)
+
+
+def _json(resp):
+    return runtime.response_json(resp)
+
+
+def _debug_missing(name):
+    if runtime.CONFIG.verbose:
+        print(f"[skip] {name} dependency is not installed")
+
 
 def redis(target):
-	try:
-		ip = target.split(":")[0]
-		port = int(target.split(":")[1])
-		socket.setdefaulttimeout(10)
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.connect((ip, port))
-		s.send(bytes("INFO\r\n", 'UTF-8'))
-		result = s.recv(1024).decode()
-		if "redis_version" in result:
-			print(target + " redis未授权")
-			rFile(str(target) + " redis未授权")
-		s.close()
-	except:
-		return
-
+    try:
+        ip, port = runtime.split_target(target)
+        with socket.create_connection((ip, int(port)), timeout=runtime.CONFIG.timeout) as s:
+            s.sendall(b"INFO\r\n")
+            result = s.recv(2048).decode(errors="ignore")
+        if "redis_version" in result:
+            runtime.report(f"{target} redis未授权")
+    except Exception:
+        return
 
 
 def mongodb(target):
-	try:
-		ip = target.split(":")[0]
-		port = int(target.split(":")[1])
-		conn = pymongo.MongoClient(ip, port, socketTimeoutMS=4000)
-		dbname = conn.list_database_names()
-		print(target + " mongodb未授权")
-		rFile(str(target) + " mongodb未授权")
-		conn.close()
-	except:
-		return
-
+    if pymongo is None:
+        _debug_missing("pymongo")
+        return
+    try:
+        ip, port = runtime.split_target(target)
+        timeout_ms = int(runtime.CONFIG.timeout * 1000)
+        conn = pymongo.MongoClient(ip, int(port), socketTimeoutMS=timeout_ms, serverSelectionTimeoutMS=timeout_ms)
+        conn.list_database_names()
+        runtime.report(f"{target} mongodb未授权")
+        conn.close()
+    except Exception:
+        return
 
 
 def memcached(target):
-	try:
-		ip = target.split(":")[0]
-		port = int(target.split(":")[1])
-		socket.setdefaulttimeout(10)
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.connect((ip, port))
-		s.send(bytes('stats\r\n', 'UTF-8'))
-		if 'version' in s.recv(1024).decode():
-			print(target + " memcached未授权")
-			rFile(str(target) + " memcached未授权")
-		s.close()
-	except:
-		return
+    try:
+        ip, port = runtime.split_target(target)
+        with socket.create_connection((ip, int(port)), timeout=runtime.CONFIG.timeout) as s:
+            s.sendall(b"stats\r\n")
+            result = s.recv(2048).decode(errors="ignore")
+        if "version" in result:
+            runtime.report(f"{target} memcached未授权")
+    except Exception:
+        return
 
 
 def elasticsearch(target):
-	try:
-		ip = target.split(":")[0]
-		port = int(target.split(":")[1])
-		if "443" in str(port) or str(port) in const.https_ports:
-			url0 = 'https://'+str(target) +'/'
-			url = 'https://'+str(target) +'/_cat'
-		else:
-			url0 = 'http://'+str(target) +'/'
-			url = 'http://'+str(target) +'/_cat'
-		r0 = requests.get(url0, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		r = requests.get(url, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		if 'You Know, for Search' in r0.content.decode() and '/_cat/master' in r.content.decode():
-			print(url + " elasticsearch未授权")
-			rFile(str(url) + " elasticsearch未授权")
-	except:
-		return
+    try:
+        root = runtime.get(_url(target, "/"), allow_redirects=False)
+        cat = runtime.get(_url(target, "/_cat"), allow_redirects=False)
+        if "You Know, for Search" in _text(root) and "/_cat/master" in _text(cat):
+            runtime.report(f"{_url(target, '/_cat')} elasticsearch未授权")
+    except Exception:
+        return
 
 
 def zookeeper(target):
-	try:
-		ip = target.split(":")[0]
-		port = int(target.split(":")[1])
-		socket.setdefaulttimeout(10)
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.connect((ip, port))
-		s.send(bytes('envi', 'UTF-8'))
-		data = s.recv(1024).decode()
-		s.close()
-		if 'Environment' in data:
-			print(target + " zookeeper未授权")
-			rFile(str(target) + " zookeeper未授权")
-	except:
-		return
+    try:
+        ip, port = runtime.split_target(target)
+        with socket.create_connection((ip, int(port)), timeout=runtime.CONFIG.timeout) as s:
+            s.sendall(b"envi")
+            data = s.recv(2048).decode(errors="ignore")
+        if "Environment" in data:
+            runtime.report(f"{target} zookeeper未授权")
+    except Exception:
+        return
 
 
 def ftp(target):
-	try:
-		ip = target.split(":")[0]
-		port = int(target.split(":")[1])
-		ftp = ftplib.FTP.connect(ip,port,timeout=10)
-		ftp.login('anonymous', 'Aa@12345678')
-		print(target + " FTP未授权")
-		rFile(str(target) + " FTP未授权")
-	except:
-		return
+    try:
+        ip, port = runtime.split_target(target)
+        client = ftplib.FTP()
+        client.connect(ip, int(port), timeout=runtime.CONFIG.timeout)
+        client.login("anonymous", "anonymous@")
+        client.quit()
+        runtime.report(f"{target} FTP未授权")
+    except Exception:
+        return
 
 
 def CouchDB(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url = 'https://'+str(target) +'/_config'
-		else:
-			url = 'http://'+str(target) +'/_config'
-		r = requests.get(url, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		if 'httpd_design_handlers' in r.content.decode() and 'external_manager' in r.content.decode() and 'replicator_manager' in r.content.decode():
-			print(url + " CouchDB未授权")
-			rFile(str(url) + " CouchDB未授权")
-	except:
-		return
+    try:
+        url = _url(target, "/_config")
+        resp = runtime.get(url, allow_redirects=False)
+        body = _text(resp)
+        if resp.status_code == 200 and all(x in body for x in ("httpd_design_handlers", "external_manager", "replicator_manager")):
+            runtime.report(f"{url} CouchDB未授权")
+    except Exception:
+        return
 
 
 def docker(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url0 = 'https://'+str(target) +'/info'
-			url = 'https://'+str(target) +'/version'
-		else:
-			url0 = 'http://'+str(target) +'/info'
-			url = 'http://'+str(target) +'/version'
-		r0 = requests.get(url0, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		r = requests.get(url, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		if 'ApiVersion' in r.content.decode() and 'KernelVersion' in r0.content.decode() and 'RegistryConfig' in r0.content.decode():
-			print(url0 + " docker api未授权")
-			rFile(str(url0) + " docker api未授权")
-	except:
-		return
+    try:
+        info_url = _url(target, "/info")
+        version_url = _url(target, "/version")
+        info = runtime.get(info_url, allow_redirects=False)
+        version = runtime.get(version_url, allow_redirects=False)
+        info_json = _json(info) or {}
+        version_json = _json(version) or {}
+        if "ApiVersion" in version_json and "KernelVersion" in info_json and "RegistryConfig" in info_json:
+            runtime.report(f"{info_url} docker api未授权")
+    except Exception:
+        return
 
 
 def Hadoop(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url = 'https://'+str(target) +'/dfshealth.html'
-		else:
-			url = 'http://'+str(target) +'/dfshealth.html'
-		r = requests.get(url, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		if 'hadoop.css' in r.content.decode():
-			print(url + " Hadoop未授权")
-			rFile(str(url) + " Hadoop未授权")
-	except:
-		return
-
+    try:
+        url = _url(target, "/dfshealth.html")
+        resp = runtime.get(url, allow_redirects=False)
+        if resp.status_code == 200 and "hadoop.css" in _text(resp):
+            runtime.report(f"{url} Hadoop未授权")
+    except Exception:
+        return
 
 
 def hadoop_yarn(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url = 'https://'+str(target) +'/ws/v1/cluster/info'
-		else:
-			url = 'http://'+str(target) +'/ws/v1/cluster/info'
-		r = requests.get(url, headers = HD, timeout=10,verify=False)
-		if 'resourceManagerVersionBuiltOn' in r.content.decode() and 'hadoopVersion'in r.content.decode():
-			print(url + " Hadoop yarn未授权")
-			rFile(str(url) + " Hadoop yarn未授权")
-	except:
-		return
-
-
-
+    try:
+        url = _url(target, "/ws/v1/cluster/info")
+        resp = runtime.get(url)
+        data = _json(resp) or {}
+        body = _text(resp)
+        if resp.status_code == 200 and ("resourceManagerVersionBuiltOn" in body or "clusterInfo" in data) and "hadoopVersion" in body:
+            runtime.report(f"{url} Hadoop yarn未授权")
+    except Exception:
+        return
 
 
 def docker_reg(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url0 = 'https://'+str(target) +'/v2/'
-			url = 'https://'+str(target) +'/v2/_catalog'
-		else:
-			url0 = 'http://'+str(target) +'/v2/'
-			url = 'http://'+str(target) +'/v2/_catalog'
-		r0 = requests.get(url0, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		r = requests.get(url, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		if 'docker-distribution-api-version' in str(r0.headers) and 'repositories' in r.content.decode():
-			print(url0 + " docker-registry-api未授权")
-			rFile(str(url0) + " docker-registry-api未授权")
-	except:
-		return
+    try:
+        root_url = _url(target, "/v2/")
+        catalog_url = _url(target, "/v2/_catalog")
+        root = runtime.get(root_url, allow_redirects=False)
+        catalog = runtime.get(catalog_url, allow_redirects=False)
+        catalog_json = _json(catalog) or {}
+        headers = {k.lower(): v for k, v in root.headers.items()}
+        if "docker-distribution-api-version" in headers and "repositories" in catalog_json:
+            runtime.report(f"{root_url} docker-registry-api未授权")
+    except Exception:
+        return
+
 
 def zabbix(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url0 = 'https://'+str(target) +'/zabbix'
-			url = 'https://'+str(target) +'/'
-		else:
-			url0 = 'http://'+str(target) +'/zabbix'
-			url = 'http://'+str(target) +'/'
-	except:
-		return
-	try:
-		r = requests.get(url0, headers = HD, timeout=10,verify=False, allow_redirects=True)
-		r0 = requests.get(url, headers = HD, timeout=10,verify=False, allow_redirects=True)
-	except:
-		return
-	if "zabbix" in r.content.decode().lower() or "zabbix" in r0.content.decode().lower():
-		try:
-			zapi = ZabbixAPI(url0)
-			zapi.session.verify = False
-			zapi.timeout = 10
-			zapi.login("Admin", "zabbix")
-			print(url0 + "zabbix默认密码Admin/zabbix")
-			rFile(url0 + "zabbix默认密码Admin/zabbix")
-		except:
-			try:
-				zapi = ZabbixAPI(url)
-				zapi.session.verify = False
-				zapi.timeout = 10
-				zapi.login("Admin", "zabbix")
-				print(url + "zabbix默认密码Admin/zabbix")
-				rFile(url + "zabbix默认密码Admin/zabbix")
-			except:
-				return
-	else:
-		return
+    if ZabbixAPI is None:
+        _debug_missing("pyzabbix")
+        return
+    try:
+        urls = [_url(target, "/zabbix"), _url(target, "/")]
+        pages = []
+        for url in urls:
+            try:
+                pages.append((url, runtime.get(url, allow_redirects=True)))
+            except Exception:
+                pass
+        if not any("zabbix" in _text(resp).lower() for _, resp in pages):
+            return
+        for url, _ in pages:
+            try:
+                zapi = ZabbixAPI(url)
+                zapi.session.verify = runtime.CONFIG.verify_ssl
+                zapi.timeout = runtime.CONFIG.timeout
+                zapi.login("Admin", "zabbix")
+                runtime.report(f"{url} zabbix默认密码Admin/zabbix")
+                return
+            except Exception:
+                continue
+    except Exception:
+        return
 
 
 def influxdb(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url0 = 'https://'+str(target) +'/ping'
-			url = 'https://'+str(target) +'/query?q=show%20users'
-		else:
-			url0 = 'http://'+str(target) +'/ping'
-			url = 'http://'+str(target) +'/query?q=show%20users'
-		r0 = requests.get(url0, headers = HD, timeout=10,verify=False)
-		r = requests.get(url, headers = HD, timeout=10,verify=False)
-		if 'X-Influxdb-Version' in str(r0.headers) and 'columns' in r.content.decode() and 'user' in r.content.decode():
-			print(url + " influxdb未授权")
-			rFile(str(url) + " influxdb未授权")
-	except:
-		return
+    try:
+        ping_url = _url(target, "/ping")
+        query_url = _url(target, "/query?q=show%20users")
+        ping = runtime.get(ping_url)
+        query = runtime.get(query_url)
+        body = _text(query)
+        if "X-Influxdb-Version" in ping.headers and "columns" in body and "user" in body:
+            runtime.report(f"{query_url} influxdb未授权")
+    except Exception:
+        return
 
 
 def druid(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url = 'https://'+str(target) +'/druid/index.html'
-		else:
-			url = 'http://'+str(target) +'/druid/index.html'
-		r = requests.get(url, headers = HD, timeout=10,verify=False)
-		if 'Druid Stat Index' in r.content.decode() and 'DruidVersion' in r.content.decode() and 'DruidDrivers' in r.content.decode():
-			print(url + " druid-monitor未授权")
-			rFile(str(url) + " druid-monitor未授权")
-	except:
-		return
+    try:
+        url = _url(target, "/druid/index.html")
+        resp = runtime.get(url)
+        body = _text(resp)
+        if resp.status_code == 200 and all(x in body for x in ("Druid Stat Index", "DruidVersion", "DruidDrivers")):
+            runtime.report(f"{url} druid-monitor未授权")
+    except Exception:
+        return
 
 
 def jboss(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url = 'https://'+str(target) +'/jmx-console/'
-		else:
-			url = 'http://'+str(target) +'/jmx-console/'
-		r = requests.get(url, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		if 'jboss.management.local' in r.content.decode() and 'jboss.web' in r.content.decode():
-			print(url + " jboss未授权")
-			rFile(str(url) + " jboss未授权")
-	except:
-		return
+    try:
+        url = _url(target, "/jmx-console/")
+        resp = runtime.get(url, allow_redirects=False)
+        body = _text(resp)
+        if resp.status_code == 200 and "jboss.management.local" in body and "jboss.web" in body:
+            runtime.report(f"{url} jboss未授权")
+    except Exception:
+        return
 
 
 def jenkins(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url = 'https://'+str(target) +'/systemInfo'
-		else:
-			url = 'http://'+str(target) +'/systemInfo'
-		r = requests.get(url, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		if 'jenkins.war' in r.content.decode() and 'JENKINS_HOME' in r.content.decode():
-			print(url + " jenkins未授权")
-			rFile(str(url) + " jenkins未授权")
-	except:
-		return
-
+    try:
+        url = _url(target, "/systemInfo")
+        resp = runtime.get(url, allow_redirects=False)
+        body = _text(resp)
+        if resp.status_code == 200 and "jenkins.war" in body and "JENKINS_HOME" in body:
+            runtime.report(f"{url} jenkins未授权")
+    except Exception:
+        return
 
 
 def rsync(target):
-	try:
-		print(target + " 可能存在rsync未授权")
-		rFile(str(target) + " 可能存在rsync未授权")
-	except:
-		pass
+    runtime.report(f"{target} 可能存在rsync未授权")
 
 
 def mysql(target):
-	try:
-		ip = target.split(":")[0]
-		port0 = int(target.split(":")[1])
-		conn = pymysql.connect(host=ip, port=port0, user='root', password='', charset='utf8', autocommit=True)
-		print(target + " 存在mysql空口令漏洞")
-		rFile(target + " 存在mysql空口令漏洞")
-	except:
-		try:
-			conn = pymysql.connect(host=ip, port=port0, user='root', password='root', charset='utf8', autocommit=True)
-			print(target + " 存在mysql root:root口令漏洞")
-			rFile(target + " 存在mysql root:root口令漏洞")
-		except:
-			pass
-		return
-
+    if pymysql is None:
+        _debug_missing("pymysql")
+        return
+    try:
+        ip, port = runtime.split_target(target)
+        for user, password, label in (("root", "", "mysql空口令漏洞"), ("root", "root", "mysql root:root口令漏洞")):
+            try:
+                conn = pymysql.connect(
+                    host=ip,
+                    port=int(port),
+                    user=user,
+                    password=password,
+                    charset="utf8",
+                    autocommit=True,
+                    connect_timeout=int(runtime.CONFIG.timeout),
+                    read_timeout=int(runtime.CONFIG.timeout),
+                    write_timeout=int(runtime.CONFIG.timeout),
+                )
+                conn.close()
+                runtime.report(f"{target} 存在{label}")
+                return
+            except Exception:
+                continue
+    except Exception:
+        return
 
 
 def kibana(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or "5601" in str(port) or str(port) in const.https_ports:
-			url = 'https://'+str(target) +'/app/kibana'
-		else:
-			url = 'http://'+str(target) +'/app/kibana'
-		r = requests.get(url, headers = HD, timeout=10,verify=False, allow_redirects=False)
-		if '.kibanaWelcomeView' in r.content.decode():
-			print(url + " kibana未授权")
-			rFile(str(url) + " kibana未授权")
-	except:
-		return
+    try:
+        candidates = [_url(target, "/app/kibana"), _url(target, "/app/home")]
+        for url in candidates:
+            resp = runtime.get(url, allow_redirects=False)
+            body = _text(resp)
+            if resp.status_code in (200, 302) and (".kibanaWelcomeView" in body or "kbn-injected-metadata" in body or "Kibana" in body):
+                runtime.report(f"{url} kibana未授权/可访问")
+                return
+    except Exception:
+        return
 
 
 def kong(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url = 'https://'+str(target) +'/'
-			url0 = 'https://'+str(target) +'/status'
-		else:
-			url = 'http://'+str(target) +'/'
-			url0 = 'https://'+str(target) +'/status'
-		r = requests.get(url, headers = HD, timeout=10,verify=False)
-		r0 = requests.get(url0, headers = HD, timeout=10,verify=False)
-		if 'kong_env' in r.content.decode() and 'kong_db_cache_miss' in r0.content.decode():
-			print(url0 + " kong未授权")
-			rFile(str(url0) + " kong未授权")
-	except:
-		return
+    try:
+        status_url = _url(target, "/status")
+        resp = runtime.get(status_url)
+        body = _text(resp)
+        data = _json(resp) or {}
+        if resp.status_code == 200 and ("kong_db_cache_miss" in body or "database" in data or "server" in data):
+            runtime.report(f"{status_url} kong未授权")
+    except Exception:
+        return
 
 
 def spark_api(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		url0 = 'https://'+str(target) +'/v1/submissions'
-		url = 'http://'+str(target) +'/v1/submissions'
-		try:
-			r0 = requests.get(url0, headers = HD, timeout=10,verify=False)
-			if r0.status_code == 400 and 'serverSparkVersion' in r0.content.decode():
-				print(url0 + " spark_api未授权")
-				rFile(str(url0) + " spark_api未授权")
-		except:
-			pass
-		try:
-			r = requests.get(url, headers = HD, timeout=10,verify=False)
-			if r.status_code == 400 and 'serverSparkVersion' in r.content.decode():
-				print(url + " spark_api未授权")
-				rFile(str(url) + " spark_api未授权")
-		except:
-			pass
-	except:
-		return
+    for scheme in ("http", "https"):
+        try:
+            ip, port = runtime.split_target(target)
+            host = f"[{ip}]" if ":" in ip and not ip.startswith("[") else ip
+            url = f"{scheme}://{host}:{port}/v1/submissions"
+            resp = runtime.get(url)
+            if resp.status_code == 400 and "serverSparkVersion" in _text(resp):
+                runtime.report(f"{url} spark_api未授权")
+                return
+        except Exception:
+            continue
 
 
 def spark(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url = 'https://'+str(target) +'/'
-		else:
-			url = 'http://'+str(target) +'/'
-		r = requests.get(url, headers = HD, timeout=10,verify=False)
-		if '<title>Spark' in r.content.decode() and '<strong>URL:</strong> spark:' in r.content.decode():
-			print(url + " spark未授权")
-			rFile(str(url) + " spark未授权")
-	except:
-		return
+    try:
+        url = _url(target, "/")
+        resp = runtime.get(url)
+        body = _text(resp)
+        if resp.status_code == 200 and "<title>Spark" in body and "<strong>URL:</strong> spark:" in body:
+            runtime.report(f"{url} spark未授权")
+    except Exception:
+        return
 
 
 def tensorboard(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url0 = 'https://'+str(target) +'/'
-			url = 'https://'+str(target) +'/data/plugins_listing'
-		else:
-			url0 = 'http://'+str(target) +'/'
-			url = 'https://'+str(target) +'/data/plugins_listing'
-		r0 = requests.get(url0, headers = HD, timeout=10,verify=False)
-		r = requests.get(url, headers = HD, timeout=10,verify=False)
-		if 'The TensorFlow Authors. All Rights Reserved.' in r0.content.decode() and 'distributions' in r.content.decode() and 'profile' in r.content.decode():
-			print(url + " tensorboard未授权")
-			rFile(str(url) + " tensorboard未授权")
-	except:
-		return
-
+    try:
+        root_url = _url(target, "/")
+        plugin_url = _url(target, "/data/plugins_listing")
+        root = runtime.get(root_url)
+        plugins = runtime.get(plugin_url)
+        body = _text(root)
+        data = _json(plugins) or {}
+        if root.status_code == 200 and "TensorFlow" in body and ("profile" in str(data) or "distributions" in str(data)):
+            runtime.report(f"{plugin_url} tensorboard未授权")
+    except Exception:
+        return
 
 
 def flink(target):
-	try:
-		ip = target.split(":")[0]
-		port = target.split(":")[1]
-		if "443" in str(port) or str(port) in const.https_ports:
-			url = 'https://'+str(target) +'/jars/'
-		else:
-			url = 'http://'+str(target) +'/jars/'
-		r = requests.get(url, headers = HD, timeout=10,verify=False)
-		if r.status_code == 200 and "application/json" in r.headers['Content-Type'] and 'address' in r.content.decode():
-			print(url + " flink未授权")
-			rFile(str(url) + " flink未授权")
-	except:
-		return
-
+    try:
+        url = _url(target, "/jars/")
+        resp = runtime.get(url)
+        content_type = resp.headers.get("Content-Type", "")
+        if resp.status_code == 200 and "application/json" in content_type and "address" in _text(resp):
+            runtime.report(f"{url} flink未授权")
+    except Exception:
+        return
 
 
 def solr(target):
-	solrpath=['/solr','/Solr','/']
-	for i in solrpath:
-		try:
-			ip = target.split(":")[0]
-			port = target.split(":")[1]
-			if "443" in str(port) or str(port) in const.https_ports:
-				url = 'https://'+str(target) +i
-			else:
-				url = 'http://'+str(target) +i
-			r = requests.get(url, headers = HD, timeout=10,verify=False)
-			if r.status_code == 200 and ("<title>Solr Admin</title>" in r.content.decode() or "app_config.solr_path" in r.content.decode() or "<span>Solr Query Syntax</span>" in r.content.decode()):
-				print(url + " solr未授权")
-				rFile(str(url) + " solr未授权")
-				return
-		except:
-			pass
+    for path in ("/solr", "/Solr", "/"):
+        try:
+            url = _url(target, path)
+            resp = runtime.get(url)
+            body = _text(resp)
+            if resp.status_code == 200 and (
+                "<title>Solr Admin</title>" in body
+                or "app_config.solr_path" in body
+                or "<span>Solr Query Syntax</span>" in body
+            ):
+                runtime.report(f"{url} solr未授权")
+                return
+        except Exception:
+            continue
